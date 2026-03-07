@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.cityheaven.net)",
+      "Bash(pip list:*)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(gh auth:*)"
+    ]
+  }
+}
