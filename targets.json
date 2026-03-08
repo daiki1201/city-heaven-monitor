@@ -1,0 +1,25 @@
+{
+  "check_interval_minutes": 15,
+  "targets": [
+    {
+      "name": "みなつ",
+      "url": "https://www.cityheaven.net/tokyo/A1312/A131205/siroi-pocha/girlid-60704700/?lo=1"
+    },
+    {
+      "name": "みれい",
+      "url": "https://www.cityheaven.net/tokyo/A1305/A130505/ultraparadise/girlid-64598621/?lo=1"
+    },
+    {
+      "name": "あすみ",
+      "url": "https://www.cityheaven.net/tokyo/A1305/A130505/ultraparadise/girlid-63345050/?lo=1"
+    },
+    {
+      "name": "るな",
+      "url": "https://www.cityheaven.net/tokyo/A1311/A131101/puzzle/girlid-58484989/?lo=1"
+    },
+    {
+      "name": "かれん",
+      "url": "https://www.cityheaven.net/tokyo/A1313/A131301/kinshicho-pocha/girlid-54880327/?lo=1"
+    }
+  ]
+}

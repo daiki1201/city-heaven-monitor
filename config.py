@@ -3,11 +3,20 @@ import json
 import os
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
+TARGETS_PATH = os.path.join(os.path.dirname(__file__), "targets.json")
 
 
 def load_config() -> dict:
-    """config.jsonを読み込む"""
+    """config.jsonを読み込む（存在する場合のみ）"""
+    if not os.path.exists(CONFIG_PATH):
+        return {}
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def load_targets_config() -> dict:
+    """targets.jsonを読み込む"""
+    with open(TARGETS_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -31,11 +40,9 @@ def get_telegram_chat_id() -> str:
 
 def get_check_interval() -> int:
     """チェック間隔（分）を取得"""
-    config = load_config()
-    return config.get("check_interval_minutes", 30)
+    return load_targets_config().get("check_interval_minutes", 30)
 
 
 def get_targets() -> list:
     """監視対象リストを取得"""
-    config = load_config()
-    return config.get("targets", [])
+    return load_targets_config().get("targets", [])
