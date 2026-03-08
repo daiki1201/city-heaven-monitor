@@ -15,7 +15,10 @@ def load_config() -> dict:
 
 
 def load_targets_config() -> dict:
-    """targets.jsonを読み込む"""
+    """targets設定を取得（環境変数優先、次にtargets.json）"""
+    targets_env = os.environ.get("TARGETS", "")
+    if targets_env:
+        return {"targets": json.loads(targets_env), "check_interval_minutes": 15}
     with open(TARGETS_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
