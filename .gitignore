@@ -2,3 +2,4 @@ config.json
 targets.json
 __pycache__/
 *.pyc
+logs/
