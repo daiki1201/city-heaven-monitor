@@ -1,6 +1,9 @@
-"""シティヘブンのスクレイピング処理"""
+﻿from __future__ import annotations
+
 import re
 import time
+
+import cloudscraper
 import requests
 from bs4 import BeautifulSoup
 
@@ -8,49 +11,57 @@ HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    )
+        "Chrome/122.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
 }
 
 
-def fetch_page(url: str) -> str | None:
+def create_session() -> requests.Session:
+    session = cloudscraper.create_scraper(
+        browser={"browser": "chrome", "platform": "windows", "mobile": False}
+    )
+    session.headers.update(HEADERS)
+    return session
+
+
+def fetch_page(session: requests.Session, url: str, referer: str | None = None) -> str | None:
+    headers = {}
+    if referer:
+        headers["Referer"] = referer
+
     try:
-        response = requests.get(url, headers=HEADERS, timeout=15)
+        response = session.get(url, headers=headers, timeout=20)
         response.raise_for_status()
         return response.text
-    except Exception as e:
-        print(f"ページ取得エラー: {url} - {e}")
+    except Exception as exc:
+        status = ""
+        body_preview = ""
+        if "response" in locals():
+            status = f" status={response.status_code}"
+            body_preview = response.text[:160].replace("`n", " ")
+        print(f"Page fetch error:{status} {url} - {exc} {body_preview}")
         return None
 
 
-def extract_girl_info(url: str) -> tuple:
-    """
-    girlid URLからshop base URLとgirl IDを抽出
-
-    例: https://www.cityheaven.net/tokyo/A1312/A131205/siroi-pocha/girlid-60704700/?lo=1
-    → ("https://www.cityheaven.net/tokyo/A1312/A131205/siroi-pocha/", "60704700")
-    """
-    match = re.search(r'(https://www\.cityheaven\.net/.+?/)girlid-(\d+)/', url)
+def extract_girl_info(url: str) -> tuple[str | None, str | None]:
+    match = re.search(r"(https://www\.cityheaven\.net/.+?/)girlid-(\d+)/", url)
     if match:
         return match.group(1), match.group(2)
     return None, None
 
 
-def build_attend_urls(shop_base: str, girl_id: str) -> list:
-    """4週分のattend URLを生成"""
+def build_attend_urls(shop_base: str, girl_id: str) -> list[str]:
     urls = [f"{shop_base}attend/?girl_id={girl_id}"]
     for week in range(2, 5):
         urls.append(f"{shop_base}attend/weekly/{week}/?girl_id={girl_id}")
     return urls
 
 
-def parse_attend_table(html: str, girl_id: str) -> list:
-    """
-    attend HTMLから指定girl_idのスケジュールをパース
-
-    Returns:
-        ["3/7(土) 11:00-15:00", ...] 形式のリスト（出勤日のみ）
-    """
+def parse_attend_table(html: str, girl_id: str) -> list[str]:
     soup = BeautifulSoup(html, "html.parser")
     schedules = []
 
@@ -69,7 +80,6 @@ def parse_attend_table(html: str, girl_id: str) -> list:
 
     date_cells = rows[0].find_all("th", class_="week")
     dates = [cell.get_text(strip=True) for cell in date_cells]
-
     time_cells = rows[1].find_all("td")[1:]
 
     for date, cell in zip(dates, time_cells):
@@ -80,38 +90,35 @@ def parse_attend_table(html: str, girl_id: str) -> list:
             div.decompose()
 
         time_text = cell.get_text(separator="", strip=True)
-        time_text = time_text.replace("\n", "").replace(" ", "")
-
+        time_text = time_text.replace("`n", "").replace(" ", "")
         if time_text:
             schedules.append(f"{date} {time_text}")
 
     return schedules
 
 
-def scrape_schedules(url: str) -> list:
-    """
-    指定URLから出勤情報をスクレイピング（4週分）
-
-    Args:
-        url: 女の子のgirlid URL
-
-    Returns:
-        出勤情報のリスト（例: ["3/7(土) 11:00-15:00", ...]）
-    """
+def scrape_schedules(url: str) -> list[str]:
     shop_base, girl_id = extract_girl_info(url)
     if not shop_base or not girl_id:
-        print(f"URLからgirl情報を取得できませんでした: {url}")
+        print(f"Could not parse girl info from URL: {url}")
         return []
 
+    session = create_session()
+
+    # Warm up the session with the public profile page so later requests carry cookies.
+    fetch_page(session, url, referer=shop_base)
+    time.sleep(1)
+
     attend_urls = build_attend_urls(shop_base, girl_id)
-    all_schedules = []
+    all_schedules: list[str] = []
 
     for attend_url in attend_urls:
-        html = fetch_page(attend_url)
+        html = fetch_page(session, attend_url, referer=url)
         if html:
             week_schedules = parse_attend_table(html, girl_id)
             all_schedules.extend(week_schedules)
         time.sleep(1)
 
-    print(f"取得した出勤情報: {len(all_schedules)}件")
-    return all_schedules
+    unique_schedules = list(dict.fromkeys(all_schedules))
+    print(f"Fetched schedules: {len(unique_schedules)}")
+    return unique_schedules
